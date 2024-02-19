@@ -1,6 +1,6 @@
 # Noxide
 
-Support for building npm package in Nix. Think [Napalm](https://github.com/nix-community/napalm) without the registry.
+Support for building npm package in Nix. Think [Napalm](https://github.com/nix-community/napalm) (_big thanks for groundwork_) without the registry.
 
 ## How does Noxide work ?
 
