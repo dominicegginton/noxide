@@ -38,7 +38,7 @@ in noxide.buildPackage ./. { packageLock = <path/to/package-lock>; }
 
 ### Noxide with Nix flakes
 
-If you want to use Noxide in your flake project, you can do that by adding it to your inputs and either passing `noxide.overlays.default` to your Nixpkgs instance, or by using the `noxide.legacyPackages` `buildPackage` output. To configure the latter's environment, be sure to look at [the complicated scenarios](#handling-complicated-scenarios-with-noxide) and potentially set the `nixpkgs` input of noxide with `follows`.
+If you want to use Noxide in your flake project, you can do that by adding it to your inputs and either passing `noxide.overlays.default` to your Nixpkgs instance, or by using the `noxide.legacyPackages` `buildPackage` output. To configure the latter's environment.
 
 #### Example `flake.nix`
 
