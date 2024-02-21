@@ -139,6 +139,9 @@
           buildInputs = newBuildInputs;
           configurePhase =
             attrs.configurePhase
+            or '''';
+          buildPhase =
+            attrs.buildPhase
             or ''
               export HOME=$PWD
               export PATH="${npmOverrideScript}/bin:$PATH"
@@ -146,10 +149,6 @@
               mkdir -p .npm
               cp -r ${cacache} .npm/_cacache
               ${parsedInstallCommands}
-            '';
-          buildPhase =
-            attrs.buildPhase
-            or ''
               ${parsedBuildCommands}
             '';
           installPhase =
