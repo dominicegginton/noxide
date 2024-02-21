@@ -36,7 +36,8 @@
     root ? src,
     nodejs ? pkgs.nodejs,
     packageLock ? null,
-    npmCommands ? "npm install --loglevel verbose --nodedir=${nodejs}/include/node",
+    installCommands ? "npm i",
+    buildCommands ? "",
     buildInputs ? [],
     installPhase ? null,
     preNpmHook ? "",
@@ -46,24 +47,42 @@
     assert name != null -> (pname == null && version == null); let
       mkDerivationAttrs = builtins.removeAttrs attrs [
         "packageLock"
-        "npmCommands"
+        "installCommands"
+        "buildCommands"
         "nodejs"
         "packageLock"
         "preNpmHook"
         "postNpmHook"
       ];
 
-      parsedNpmCommands = let
-        type = builtins.typeOf attrs.npmCommands;
+      parsedInstallCommands = let
+        type = builtins.typeOf attrs.installCommands;
       in
-        if attrs ? npmCommands
+        if attrs ? installCommands
         then
           (
             if type == "list"
-            then builtins.concatStringsSep "\n" attrs.npmCommands
-            else attrs.npmCommands
+            then builtins.concatStringsSep "\n" attrs.installCommands
+            else attrs.installCommands
           )
-        else npmCommands;
+        else installCommands;
+
+      parsedBuildCommands = let
+        type = builtins.typeOf attrs.buildCommands;
+      in
+        if attrs ? buildCommands
+        then
+          (
+            if type == "list"
+            then builtins.concatStringsSep "\n" attrs.buildCommands
+            else attrs.buildCommands
+          )
+        else buildCommands;
+
+      actualPackage =
+        if hasFile root "package.json"
+        then root + "/package.json"
+        else null;
 
       actualPackageLock =
         if attrs ? packageLock
@@ -82,18 +101,6 @@
         })
       deps;
 
-      cacache =
-        pkgs.runCommand "cacache" {
-          passAsFile = ["tarballs"];
-          tarballs = pkgs.lib.concatLines tarballs;
-        }
-        ''
-          while read -r tarball; do
-            ${nodejs}/bin/npm cache add --cache . "$tarball"
-          done < "$tarballsPath"
-          ${pkgs.coreutils}/bin/cp -r _cacache $out
-        '';
-
       reformatPackageName = pname: let
         parts = builtins.tail (builtins.match "^(@([^/]+)/)?([^/]+)$" pname);
         non-null = builtins.filter (x: x != null) parts;
@@ -104,7 +111,26 @@
       resolvedPname = attrs.pname or (packageJSON.name or fallbackPackageName);
       resolvedVersion = attrs.version or (packageJSON.version or fallbackPackageVersion);
       name = attrs.name or "${reformatPackageName resolvedPname}-${resolvedVersion}";
-      newBuildInputs = buildInputs ++ [pkgs.jq nodejs];
+      newBuildInputs = buildInputs ++ [nodejs];
+      npmOverrideScript = pkgs.writeShellScriptBin "npm" ''
+        source "${pkgs.stdenv}/setup"
+        set -e
+        ${nodejs}/bin/npm "$@"
+        if [[ -d node_modules ]]; then find node_modules -type d -name bin | while read file; do patchShebangs "$file"; done; fi
+      '';
+
+      cacache =
+        pkgs.runCommand "cacache" {
+          passAsFile = ["tarballs"];
+          tarballs = pkgs.lib.concatLines tarballs;
+        }
+        ''
+          while read -r tarball; do
+            echo "Adding $tarball to cache"
+            ${nodejs}/bin/npm cache add --cache . "$tarball"
+          done < "$tarballsPath"
+          ${pkgs.coreutils}/bin/cp -r _cacache $out
+        '';
     in
       pkgs.stdenv.mkDerivation (
         mkDerivationAttrs
@@ -114,32 +140,29 @@
           configurePhase =
             attrs.configurePhase
             or ''
-              runHook preConfigure
               export HOME=$PWD
-              runHook postConfigure
+              export PATH="${npmOverrideScript}/bin:$PATH"
+              export PATH=$PWD/node_modules/.bin:$PATH
+              mkdir -p .npm
+              cp -r ${cacache} .npm/_cacache
+              ${parsedInstallCommands}
             '';
           buildPhase =
             attrs.buildPhase
             or ''
-              runHook preBuild
-              ${pkgs.coreutils}/bin/mkdir -p .npm
-              ${pkgs.coreutils}/bin/ln -s ${cacache} .npm/_cacache
-              ${parsedNpmCommands}
-              export PATH=$PATH:$PWD/node_modules/.bin
-              runHook postBuild
+              ${parsedBuildCommands}
             '';
           installPhase =
             attrs.installPhase
             or ''
-              runHook preInstall
               mkdir -p $out
               cp -r * $out
-              runHook postInstall
             '';
         }
       );
 in {
   inherit buildPackage;
 
-  test = buildPackage ./test {};
+  test =
+    buildPackage ./test {};
 }
