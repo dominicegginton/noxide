@@ -65,11 +65,11 @@ If you want to use Noxide in your flake project, you can do that by adding it to
 }
 ```
 
-### Handling complicated scenarios with Noxide
+### Handling Complicated Scenarios with Noxide
 
 The examples below assume that you have imported `noxide` in some way.
 
-### Custom NodeJs version
+### Custom NodeJs Version
 
 Noxide makes it quite simple to use custom node.js (with npm) version.
 This is controlled via `nodejs` argument.
@@ -108,7 +108,7 @@ noxide.buildPackage ./. {
 }
 ```
 
-### Pre/Post Npm hooks
+### Pre/Post NPM Hooks
 
 Noxide allows to specify commands that are run before and after every `npm` call.
 These hooks work also for nested `npm` calls thanks to npm override mechanism.
