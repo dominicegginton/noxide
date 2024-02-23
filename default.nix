@@ -170,6 +170,26 @@
 
           buildInputs = newBuildInputs;
 
+          # The default configure phase to configure the package
+          # before building it
+          #
+          # The `HOME` environment variable is
+          # set to the current working directory to ensure that the
+          # package is built from the correct source directory.
+          #
+          # The `PATH` environment variable is set to include the
+          # `node_modules/.bin` directory to ensure that the package
+          # can find the installed dependencies. The `npmOverrideScript`
+          # is also added to the `PATH` to ensure that the `npm` command
+          # uses the correct version of `nodejs`.
+          #
+          # The `CPATH` environment variable is set to include the
+          # `nodejs` include directory to ensure that the package can
+          # find the `node.h` header file.
+          #
+          # The `npm_config_cache` environment variable is set to the
+          # `.npm` directory to ensure that the npm cache is preserved
+          # between builds.
           configurePhase =
             attrs.configurePhase
             or ''
@@ -180,6 +200,23 @@
               export npm_config_cache=$PWD/.npm
             '';
 
+          # The default build phase to build the package.
+          # Build steps are defined as follows:
+          # 1. Run the preBuild hook
+          # 2. Set the sourceRoot to the current working directory
+          # 3. Copy the npm cache to the .npm directory
+          # 4. Run the preNpmHook
+          # 5. Run the npm commands
+          # 6. Run the postNpmHook
+          # 7. Run the postBuild hook
+          #
+          # The `sourceRoot` is set to the current working directory to ensure
+          # that the package is built from the correct source directory.
+          #
+          # To customise the build phase provide custom attrs:
+          # - `npmCommands` list of npm commands to run
+          # - `preNpmHook` to run a custom bash script before the npm commands are run
+          # - `postNpmHook` to run a custom bash script after the npm commands are run
           buildPhase =
             attrs.buildPhase
             or ''
@@ -203,6 +240,9 @@
               runHook postBuild
             '';
 
+          # The default install phase copies the source directory
+          # to the output directory. It is common to override the
+          # install phase to perform custom installation steps.
           installPhase =
             attrs.installPhase
             or ''
