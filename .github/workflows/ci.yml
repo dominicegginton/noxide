@@ -13,4 +13,7 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - uses: DeterminateSystems/flake-checker-action@main
-      - run: nix build .#test
+      - run: nix build .#empty-package
+      - run: nix build .#hello-world
+      - run: nix build .#hello-world-deps
+      - run: nix build .#hello-world-external-deps
