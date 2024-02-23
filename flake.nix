@@ -27,7 +27,8 @@
             inherit (noxide)
               empty-package
               hello-world
-              hello-world-deps;
+              hello-world-deps
+              hello-world-external-deps;
           };
 
           formatter = nixpkgs.legacyPackages.${system}.alejandra;

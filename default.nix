@@ -244,5 +244,14 @@ in {
     '';
   };
 
-
+  hello-world-external-deps = buildPackage ./test/hello-world-external-deps {
+    installPhase = ''
+      mkdir -p $out
+      cp -r * $out
+      mkdir -p $out/bin
+      echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world-external-deps
+      echo "require('../main.js')" >> $out/bin/hello-world-external-deps
+      chmod +x $out/bin/hello-world-external-deps
+    '';
+  };
 }
