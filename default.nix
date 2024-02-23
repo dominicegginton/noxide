@@ -155,6 +155,7 @@
           tarballs = pkgs.lib.concatLines tarballs;
         }
         ''
+          mkdir -p _cacache
           while read -r tarball; do
             echo "adding $tarball to npm cache"
             ${nodejs}/bin/npm cache add --cache . "$tarball"
@@ -218,6 +219,30 @@
 in {
   inherit buildPackage;
 
-  test =
-    buildPackage ./test {};
+  empty-package =
+    buildPackage ./test/empty-package {};
+
+  hello-world = buildPackage ./test/hello-world {
+    installPhase = ''
+      mkdir -p $out
+      cp -r * $out
+      mkdir -p $out/bin
+      echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world
+      echo "require('../main.js')" >> $out/bin/hello-world
+      chmod +x $out/bin/hello-world
+    '';
+  };
+
+  hello-world-deps = buildPackage ./test/hello-world-deps {
+    installPhase = ''
+      mkdir -p $out
+      cp -r * $out
+      mkdir -p $out/bin
+      echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world-deps
+      echo "require('../main.js')" >> $out/bin/hello-world-deps
+      chmod +x $out/bin/hello-world-deps
+    '';
+  };
+
+
 }

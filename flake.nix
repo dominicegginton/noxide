@@ -23,7 +23,12 @@
               ;
           };
 
-          packages = {inherit (noxide) test;};
+          packages = {
+            inherit (noxide)
+              empty-package
+              hello-world
+              hello-world-deps;
+          };
 
           formatter = nixpkgs.legacyPackages.${system}.alejandra;
         }
