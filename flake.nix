@@ -24,11 +24,13 @@
           };
 
           packages = {
-            inherit (noxide)
+            inherit
+              (noxide)
               empty-package
               hello-world
               hello-world-deps
-              hello-world-external-deps;
+              hello-world-external-deps
+              ;
           };
 
           formatter = nixpkgs.legacyPackages.${system}.alejandra;
@@ -41,6 +43,13 @@
           noxide = import ./. {
             pkgs = final;
           };
+        };
+      };
+
+      templates = {
+        default = {
+          path = ./template;
+          description = "Template for using noxide with flakes";
         };
       };
     };
