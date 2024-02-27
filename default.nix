@@ -48,9 +48,15 @@
     # The `nodejs` package to use for building the package.
     nodejs ? pkgs.nodejs,
     packageLock ? null,
+    # Workspaces are not supported by default. To enable workspaces, set this to true.
+    # This will run `npm install` with the `--workspaces` flag.
+    workspaces ? false,
     # The set of npm commands to run during the build phase of the package.
     # The --nodedir=${nodejs}/include/node provides native build inputs for building node-gyp packages.
-    npmCommands ? "npm install --loglevel=verbose --no-fund --nodedir=${nodejs}/include/node",
+    npmCommands ?
+      if workspaces
+      then "npm install --loglevel=verbose --no-fund --workspaces --nodedir=${nodejs}/include/node"
+      else "npm install --loglevel=verbose --no-fund --nodedir=${nodejs}/include/node",
     # The set of build inputs to use for building the package.
     buildInputs ? [],
     installPhase ? null,
@@ -101,10 +107,10 @@
 
       # An array of all meaningful dependencies build from the dependencies
       # decalred in the package-lock.json file. Filter out the top-level package,
-      # which has an empty name, and linked packages.
+      # which has an empty name, and all packages that do not have a resolved
+      # url or integrity hash.
       deps = pkgs.lib.attrValues (lib.pipe (actualPackageLockJSON.packages or {}) [
-        (lib.filterAttrs (name: _: name != ""))
-        (lib.filterAttrs (_name: dep: !(dep.link or false)))
+        (lib.filterAttrs (name: dep: name != "" && (dep.resolved or null) != null && (dep.integrity or null) != null))
       ]);
 
       # An array of all the tarballs that are used to build the package.
@@ -292,6 +298,18 @@ in {
       echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world-external-deps
       echo "require('../main.js')" >> $out/bin/hello-world-external-deps
       chmod +x $out/bin/hello-world-external-deps
+    '';
+  };
+
+  hello-world-workspaces = buildPackage ./test/hello-world-workspaces {
+    workspaces = true;
+    installPhase = ''
+      mkdir -p $out
+      cp -r * $out
+      mkdir -p $out/bin
+      echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world-workspaces
+      echo "require('../hello-world/main.js')" >> $out/bin/hello-world-workspaces
+      chmod +x $out/bin/hello-world-workspaces
     '';
   };
 }

@@ -30,6 +30,7 @@
               hello-world
               hello-world-deps
               hello-world-external-deps
+              hello-world-workspaces
               ;
           };
 

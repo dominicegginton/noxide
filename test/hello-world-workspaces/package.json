@@ -1,0 +1,8 @@
+{
+  "name": "hello-world-workspaces",
+  "version" : "1.0.0",
+  "workspaces": [
+    "hello-world",
+    "libs/*"
+  ]
+}
