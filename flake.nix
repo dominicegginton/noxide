@@ -13,7 +13,7 @@
       (
         system: let
           noxide = import ./. {
-            pkgs = nixpkgs.legacyPackages."${system}";
+            pkgs = nixpkgs.legacyPackages.${system};
           };
         in {
           legacyPackages = {
@@ -30,6 +30,7 @@
               hello-world
               hello-world-deps
               hello-world-external-deps
+              hello-world-external-deps-ns
               hello-world-workspaces
               ;
           };
@@ -42,10 +43,11 @@
       overlays = {
         default = final: prev: {
           noxide = import ./. {
-            pkgs = final;
+            pkgs = nixpkgs.legacyPackages.${final.system};
           };
         };
       };
+
 
       templates = {
         default = {

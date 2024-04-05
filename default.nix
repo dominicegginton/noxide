@@ -1,7 +1,7 @@
 # The noxide Nix support for building NPM packages.
 # See `buildPackage` for the main entry point.
 {
-  pkgs ? import ./nix {},
+  pkgs ? import <nixpkgs> {},
   lib ? pkgs.lib,
 }: let
   fallbackPackageName = "build-npm-package";
@@ -48,15 +48,9 @@
     # The `nodejs` package to use for building the package.
     nodejs ? pkgs.nodejs,
     packageLock ? null,
-    # Workspaces are not supported by default. To enable workspaces, set this to true.
-    # This will run `npm install` with the `--workspaces` flag.
-    workspaces ? false,
     # The set of npm commands to run during the build phase of the package.
     # The --nodedir=${nodejs}/include/node provides native build inputs for building node-gyp packages.
-    npmCommands ?
-      if workspaces
-      then "npm install --loglevel=verbose --no-fund --workspaces --nodedir=${nodejs}/include/node"
-      else "npm install --loglevel=verbose --no-fund --nodedir=${nodejs}/include/node",
+    npmCommands ? "npm install --prefer-offline --loglevel=silly --no-fund --nodedir=${nodejs}/include/node",
     # The set of build inputs to use for building the package.
     buildInputs ? [],
     installPhase ? null,
@@ -140,7 +134,7 @@
       resolvedVersion = attrs.version or (packageJSON.version or fallbackPackageVersion);
       name = attrs.name or "${reformatPackageName resolvedPname}-${resolvedVersion}";
 
-      newBuildInputs = buildInputs ++ [nodejs];
+      newBuildInputs = buildInputs ++ [nodejs pkgs.jq];
 
       # The `npm` command is overridden to use the `nodejs` package
       # for running the `npm` command. This is necessary to ensure
@@ -172,7 +166,7 @@
       pkgs.stdenv.mkDerivation (
         mkDerivationAttrs
         // {
-          inherit name src;
+          inherit name version src;
 
           buildInputs = newBuildInputs;
 
@@ -254,7 +248,6 @@
             or ''
               runHook preInstall
 
-              echo "copying src to out"
               mkdir -p $out
               cp -r * $out
 
@@ -302,7 +295,7 @@ in {
   };
 
   hello-world-workspaces = buildPackage ./test/hello-world-workspaces {
-    workspaces = true;
+    npmCommands = "npm install --ws";
     installPhase = ''
       mkdir -p $out
       cp -r * $out
