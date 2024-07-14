@@ -1,7 +1,12 @@
 # The noxide Nix support for building NPM packages.
 # See `buildPackage` for the main entry point.
 
-{ pkgs, lib }:
+{ pkgs }:
+
+with builtins;
+with pkgs.lib;
+with pkgs.stdenv;
+with pkgs.nodejs;
 
 let
   fallbackPackageName = "build-npm-package";
@@ -9,9 +14,9 @@ let
 
   # Helper Functions
   hasFile = dir: filename:
-    if lib.versionAtLeast builtins.nixVersion "2.3"
-    then builtins.pathExists (dir + "/${filename}")
-    else builtins.hasAttr filename (builtins.readDir dir);
+    if versionAtLeast nixVersion "2.3"
+    then pathExists (dir + "/${filename}")
+    else hasAttr filename (readDir dir);
   ifNotNull = a: b:
     if a != null
     then a
@@ -30,12 +35,12 @@ let
     else null;
   readPackageJSON = root:
     if hasFile root "package.json"
-    then lib.importJSON (root + "/package.json")
-    else builtins.trace "WARN: package.json not found in ${toString root}" { };
+    then importJSON (root + "/package.json")
+    else trace "WARN: package.json not found in ${toString root}" { };
   readPackageLockJSON = root:
     if hasFile root "package-lock.json"
-    then lib.importJSON (root + "/package-lock.json")
-    else builtins.trace "WARN: package-lock.json not found in ${toString root}" { };
+    then importJSON (root + "/package-lock.json")
+    else trace "WARN: package-lock.json not found in ${toString root}" { };
 
   buildPackage = src: attrs @ { name ? null
                       , pname ? null
@@ -49,6 +54,7 @@ let
                       , # The set of npm commands to run during the build phase of the package.
                         # The --nodedir=${nodejs}/include/node provides native build inputs for building node-gyp packages.
                         npmCommands ? "npm install --prefer-offline --loglevel=silly --no-fund --nodedir=${nodejs}/include/node"
+                      , nativeBuildInputs ? [ ]
                       , # The set of build inputs to use for building the package.
                         buildInputs ? [ ]
                       , installPhase ? null
@@ -56,12 +62,15 @@ let
                         preNpmHook ? ""
                       , # The bash script to be called after NPM commands are run.
                         postNpmHook ? ""
+                      , # Custom npmBuildHook
+                        npmBuildHook ? null
                       , ...
                       }:
 
+
     assert name != null -> (pname == null && version == null); let
       # Remove the attributes that are not needed for the derivation.
-      mkDerivationAttrs = builtins.removeAttrs attrs [
+      mkDerivationAttrs = removeAttrs attrs [
         "packageLock"
         "npmCommands"
         "nodejs"
@@ -76,16 +85,18 @@ let
       # provided, then use the default value.
       parsedNpmCommands =
         let
-          type = builtins.typeOf attrs.npmCommands;
+          type = typeOf attrs.npmCommands;
         in
         if attrs ? npmCommands
         then
           (
             if type == "list"
-            then builtins.concatStringsSep "\n" attrs.npmCommands
+            then concatStringsSep "\n" attrs.npmCommands
             else attrs.npmCommands
           )
         else npmCommands;
+
+      hooks = import ./hooks { inherit pkgs nodejs; };
 
       actualPackage =
         if hasFile root "package.json"
@@ -97,14 +108,14 @@ let
         then attrs.packageLock
         else findPackageLock root;
 
-      actualPackageLockJSON = builtins.fromJSON (builtins.readFile actualPackageLock);
+      actualPackageLockJSON = fromJSON (readFile actualPackageLock);
 
       # An array of all meaningful dependencies build from the dependencies
       # decalred in the package-lock.json file. Filter out the top-level package,
       # which has an empty name, and all packages that do not have a resolved
       # url or integrity hash.
-      deps = pkgs.lib.attrValues (lib.pipe (actualPackageLockJSON.packages or { }) [
-        (lib.filterAttrs (name: dep: name != "" && (dep.resolved or null) != null && (dep.integrity or null) != null))
+      deps = attrValues (pipe (actualPackageLockJSON.packages or { }) [
+        (filterAttrs (name: dep: name != "" && (dep.resolved or null) != null && (dep.integrity or null) != null))
       ]);
 
       # An array of all the tarballs that are used to build the package.
@@ -123,10 +134,10 @@ let
       # format does not allow for the use of the `@` character in the package name.
       reformatPackageName = pname:
         let
-          parts = builtins.tail (builtins.match "^(@([^/]+)/)?([^/]+)$" pname);
-          non-null = builtins.filter (x: x != null) parts;
+          parts = tail (match "^(@([^/]+)/)?([^/]+)$" pname);
+          non-null = filter (x: x != null) parts;
         in
-        builtins.concatStringsSep "-" non-null;
+        concatStringsSep "-" non-null;
 
       packageJSON = readPackageJSON root;
 
@@ -155,7 +166,7 @@ let
         pkgs.runCommand "cacache"
           {
             passAsFile = [ "tarballs" ];
-            tarballs = pkgs.lib.concatLines tarballs;
+            tarballs = concatLines tarballs;
           }
           ''
             mkdir -p _cacache
@@ -176,8 +187,14 @@ let
 
         {
           inherit name version src;
-
-          buildInputs = newBuildInputs;
+          nativeBuildInputs = nativeBuildInputs
+          ++ [
+            nodejs
+            (if npmBuildHook != null then npmBuildHook else hooks.npmBuildHook)
+            nodejs.python
+          ]
+          ++ optionals stdenv.isDarwin [ darwin.cctools ];
+          buildInputs = newBuildInputs ++ [ nodejs ];
 
           # The default configure phase to configure the package
           # before building it
@@ -230,22 +247,16 @@ let
             attrs.buildPhase
               or ''
               runHook preBuild
-
               sourceRoot=$PWD
-
               echo "copying npm cache"
               mkdir -p .npm
               cp -r ${cacache} .npm/_cacache
-
               echo "running pre npm hook"
               ${preNpmHook}
-
               echo "running npm commands"
               ${parsedNpmCommands}
-
               echo "running post npm hook"
               ${postNpmHook}
-
               runHook postBuild
             '';
 
@@ -256,12 +267,14 @@ let
             attrs.installPhase
               or ''
               runHook preInstall
-
               mkdir -p $out
               cp -r * $out
-
               runHook postInstall
             '';
+
+          strictDeps = true;
+          dontStrip = attrs.dontStrip or true;
+          meta = (attrs.meta or { }) // { platforms = attrs.meta.platforms or nodejs.meta.platforms; };
         }
       );
 in

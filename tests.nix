@@ -1,8 +1,7 @@
 { pkgs }:
 
 let
-  buildPackage = import ./default.nix { inherit pkgs; lib = pkgs.lib; };
-
+  buildPackage = import ./default.nix { inherit pkgs; };
 in
 
 {
