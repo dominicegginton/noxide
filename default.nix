@@ -167,11 +167,14 @@ let
           '';
     in
 
-    pkgs.nodejs.stdenv.mkDerivation
+    nodejs.stdenv.mkDerivation
 
       (
         mkDerivationAttrs
-        // {
+
+        //
+
+        {
           inherit name version src;
 
           buildInputs = newBuildInputs;
