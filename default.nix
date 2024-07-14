@@ -1,9 +1,9 @@
 # The noxide Nix support for building NPM packages.
 # See `buildPackage` for the main entry point.
-{
-  pkgs ? import <nixpkgs> {},
-  lib ? pkgs.lib,
-}: let
+
+{ pkgs, lib }:
+
+let
   fallbackPackageName = "build-npm-package";
   fallbackPackageVersion = "0.0.0";
 
@@ -17,7 +17,7 @@
     then a
     else b;
   ifNotEmpty = a: b:
-    if a != []
+    if a != [ ]
     then a
     else b;
   findPackageJson = root:
@@ -31,35 +31,34 @@
   readPackageJSON = root:
     if hasFile root "package.json"
     then lib.importJSON (root + "/package.json")
-    else builtins.trace "WARN: package.json not found in ${toString root}" {};
+    else builtins.trace "WARN: package.json not found in ${toString root}" { };
   readPackageLockJSON = root:
     if hasFile root "package-lock.json"
     then lib.importJSON (root + "/package-lock.json")
-    else builtins.trace "WARN: package-lock.json not found in ${toString root}" {};
+    else builtins.trace "WARN: package-lock.json not found in ${toString root}" { };
 
-  # Build NPM Package
-  buildPackage = src: attrs @ {
-    name ? null,
-    pname ? null,
-    version ? null,
-    # Used by noxide to read the `package-lock.json` file.
-    # When not provided, it will be inferred from the src directory.
-    root ? src,
-    # The `nodejs` package to use for building the package.
-    nodejs ? pkgs.nodejs,
-    packageLock ? null,
-    # The set of npm commands to run during the build phase of the package.
-    # The --nodedir=${nodejs}/include/node provides native build inputs for building node-gyp packages.
-    npmCommands ? "npm install --prefer-offline --loglevel=silly --no-fund --nodedir=${nodejs}/include/node",
-    # The set of build inputs to use for building the package.
-    buildInputs ? [],
-    installPhase ? null,
-    # The bash script to be called before NPM commands are run.
-    preNpmHook ? "",
-    # The bash script to be called after NPM commands are run.
-    postNpmHook ? "",
-    ...
-  }:
+  buildPackage = src: attrs @ { name ? null
+                      , pname ? null
+                      , version ? null
+                      , # Used by noxide to read the `package-lock.json` file.
+                        # When not provided, it will be inferred from the src directory.
+                        root ? src
+                      , # The `nodejs` package to use for building the package.
+                        nodejs ? pkgs.nodejs
+                      , packageLock ? null
+                      , # The set of npm commands to run during the build phase of the package.
+                        # The --nodedir=${nodejs}/include/node provides native build inputs for building node-gyp packages.
+                        npmCommands ? "npm install --prefer-offline --loglevel=silly --no-fund --nodedir=${nodejs}/include/node"
+                      , # The set of build inputs to use for building the package.
+                        buildInputs ? [ ]
+                      , installPhase ? null
+                      , # The bash script to be called before NPM commands are run.
+                        preNpmHook ? ""
+                      , # The bash script to be called after NPM commands are run.
+                        postNpmHook ? ""
+                      , ...
+                      }:
+
     assert name != null -> (pname == null && version == null); let
       # Remove the attributes that are not needed for the derivation.
       mkDerivationAttrs = builtins.removeAttrs attrs [
@@ -75,9 +74,10 @@
       # concatenate the commands into a single string. Otherwise,
       # use the string as is. If the `npmCommands` attribute is not
       # provided, then use the default value.
-      parsedNpmCommands = let
-        type = builtins.typeOf attrs.npmCommands;
-      in
+      parsedNpmCommands =
+        let
+          type = builtins.typeOf attrs.npmCommands;
+        in
         if attrs ? npmCommands
         then
           (
@@ -103,27 +103,29 @@
       # decalred in the package-lock.json file. Filter out the top-level package,
       # which has an empty name, and all packages that do not have a resolved
       # url or integrity hash.
-      deps = pkgs.lib.attrValues (lib.pipe (actualPackageLockJSON.packages or {}) [
+      deps = pkgs.lib.attrValues (lib.pipe (actualPackageLockJSON.packages or { }) [
         (lib.filterAttrs (name: dep: name != "" && (dep.resolved or null) != null && (dep.integrity or null) != null))
       ]);
 
       # An array of all the tarballs that are used to build the package.
       # Each dependency is fetched using the `fetchurl` function and the
       # dependencies resolved url and integrity hash.
-      tarballs = map (dep:
-        pkgs.fetchurl {
-          url = dep.resolved;
-          hash = dep.integrity;
-        })
-      deps;
+      tarballs = map
+        (dep:
+          pkgs.fetchurl {
+            url = dep.resolved;
+            hash = dep.integrity;
+          })
+        deps;
 
       # The `reformatPackageName` function is used to reformat the package name
       # to be compatible with the Nix package name format. The Nix package name
       # format does not allow for the use of the `@` character in the package name.
-      reformatPackageName = pname: let
-        parts = builtins.tail (builtins.match "^(@([^/]+)/)?([^/]+)$" pname);
-        non-null = builtins.filter (x: x != null) parts;
-      in
+      reformatPackageName = pname:
+        let
+          parts = builtins.tail (builtins.match "^(@([^/]+)/)?([^/]+)$" pname);
+          non-null = builtins.filter (x: x != null) parts;
+        in
         builtins.concatStringsSep "-" non-null;
 
       packageJSON = readPackageJSON root;
@@ -134,7 +136,7 @@
       resolvedVersion = attrs.version or (packageJSON.version or fallbackPackageVersion);
       name = attrs.name or "${reformatPackageName resolvedPname}-${resolvedVersion}";
 
-      newBuildInputs = buildInputs ++ [nodejs pkgs.jq];
+      newBuildInputs = buildInputs ++ [ nodejs pkgs.jq ];
 
       # The `npm` command is overridden to use the `nodejs` package
       # for running the `npm` command. This is necessary to ensure
@@ -150,20 +152,24 @@
       # package. This is necessary to ensure that the npm cache is
       # preserved between builds.
       cacache =
-        pkgs.runCommand "cacache" {
-          passAsFile = ["tarballs"];
-          tarballs = pkgs.lib.concatLines tarballs;
-        }
-        ''
-          mkdir -p _cacache
-          while read -r tarball; do
-            echo "adding $tarball to npm cache"
-            ${nodejs}/bin/npm cache add --cache . "$tarball"
-          done < "$tarballsPath"
-          ${pkgs.coreutils}/bin/cp -r _cacache $out
-        '';
+        pkgs.runCommand "cacache"
+          {
+            passAsFile = [ "tarballs" ];
+            tarballs = pkgs.lib.concatLines tarballs;
+          }
+          ''
+            mkdir -p _cacache
+            while read -r tarball; do
+              echo "adding $tarball to npm cache"
+              ${nodejs}/bin/npm cache add --cache . "$tarball"
+            done < "$tarballsPath"
+            ${pkgs.coreutils}/bin/cp -r _cacache $out
+          '';
     in
-      pkgs.stdenv.mkDerivation (
+
+    pkgs.nodejs.stdenv.mkDerivation
+
+      (
         mkDerivationAttrs
         // {
           inherit name version src;
@@ -192,7 +198,7 @@
           # between builds.
           configurePhase =
             attrs.configurePhase
-            or ''
+              or ''
               export HOME=$PWD
               export PATH="${npmOverrideScript}/bin:$PATH"
               export CPATH="${nodejs}/include/node:$CPATH"
@@ -219,7 +225,7 @@
           # - `postNpmHook` to run a custom bash script after the npm commands are run
           buildPhase =
             attrs.buildPhase
-            or ''
+              or ''
               runHook preBuild
 
               sourceRoot=$PWD
@@ -245,7 +251,7 @@
           # install phase to perform custom installation steps.
           installPhase =
             attrs.installPhase
-            or ''
+              or ''
               runHook preInstall
 
               mkdir -p $out
@@ -255,54 +261,6 @@
             '';
         }
       );
-in {
-  inherit buildPackage;
+in
 
-  empty-package =
-    buildPackage ./test/empty-package {};
-
-  hello-world = buildPackage ./test/hello-world {
-    installPhase = ''
-      mkdir -p $out
-      cp -r * $out
-      mkdir -p $out/bin
-      echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world
-      echo "require('../main.js')" >> $out/bin/hello-world
-      chmod +x $out/bin/hello-world
-    '';
-  };
-
-  hello-world-deps = buildPackage ./test/hello-world-deps {
-    installPhase = ''
-      mkdir -p $out
-      cp -r * $out
-      mkdir -p $out/bin
-      echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world-deps
-      echo "require('../main.js')" >> $out/bin/hello-world-deps
-      chmod +x $out/bin/hello-world-deps
-    '';
-  };
-
-  hello-world-external-deps = buildPackage ./test/hello-world-external-deps {
-    installPhase = ''
-      mkdir -p $out
-      cp -r * $out
-      mkdir -p $out/bin
-      echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world-external-deps
-      echo "require('../main.js')" >> $out/bin/hello-world-external-deps
-      chmod +x $out/bin/hello-world-external-deps
-    '';
-  };
-
-  hello-world-workspaces = buildPackage ./test/hello-world-workspaces {
-    npmCommands = "npm install --ws";
-    installPhase = ''
-      mkdir -p $out
-      cp -r * $out
-      mkdir -p $out/bin
-      echo "#!${pkgs.nodejs}/bin/node" > $out/bin/hello-world-workspaces
-      echo "require('../hello-world/main.js')" >> $out/bin/hello-world-workspaces
-      chmod +x $out/bin/hello-world-workspaces
-    '';
-  };
-}
+buildPackage

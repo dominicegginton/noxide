@@ -1,5 +1,9 @@
 # Noxide
 
+> [!CAUTION]
+>
+> Noxide should be considered unstable.
+
 Support for building npm package in Nix. Think [Napalm](https://github.com/nix-community/napalm) (_big thanks for groundwork_) without the registry.
 
 ## How does Noxide work ?
@@ -45,7 +49,7 @@ If you want to use Noxide in your flake project, you can do that by adding it to
 ```nix
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  inputs.noxide.url = "github:nix-community/noxide";
+  inputs.noxide.url = "github:dominicegginton/noxide";
 
   # NOTE: This is optional, but is how to configure noxide's env
   inputs.noxide.inputs.nixpkgs.follows = "nixpkgs";
