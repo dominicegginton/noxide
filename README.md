@@ -1,3 +1,6 @@
+[<img src="https://avatars.githubusercontent.com/u/6078720?s=200&v=4" width="100" alt="NPM">](https://npmjs.com)
+[<img src="https://nixos.org/logo/nixos-logo-only-hires.png" width="100" alt="NixOS">](https://nixos.org)
+
 # Noxide
 
 > [!CAUTION]
