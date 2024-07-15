@@ -17,7 +17,7 @@
 
         let
           pkgs = import nixpkgs { inherit system; };
-          noxide = pkgs.callPackage ./default.nix { };
+          noxide = import ./default.nix { inherit pkgs; };
           tests = import ./tests.nix { inherit pkgs; };
         in
 
