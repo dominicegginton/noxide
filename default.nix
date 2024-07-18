@@ -1,7 +1,7 @@
 # The noxide Nix support for building NPM packages.
 # See `buildPackage` for the main entry point.
 
-{ pkgs, lib ? pkgs.lib, ... } @ topLevelArgs:
+{ pkgs, lib, ... }:
 
 with builtins;
 with lib;
@@ -10,24 +10,17 @@ with pkgs.nodejs;
 
 { name ? "${args.pname}-${args.version}"
 , src ? null
-, srcs ? null
-, sourceRoot ? null
-, prePatch ? ""
 , patches ? [ ]
-, postPatch ? ""
 , nativeBuildInputs ? [ ]
 , buildInputs ? [ ]
-, customPatchPackages ? { }
 , npmBuildScript ? "build"
 , dontNpmBuild ? false
 , npmFlags ? [ ]
 , npmInstallFlags ? npmFlags
-, npmRebuildFlags ? npmFlags
 , npmBuildFlags ? npmFlags
+, npmRebuildFlags ? npmFlags
 , nodejs ? pkgs.nodejs
-, npmConfigHook ? null
-, npmBuildHook ? null
-, npmInstallHook ? null
+, customPatchPackages ? { }
 , ...
 } @ args:
 
@@ -52,16 +45,16 @@ let
       (dep: if false then customPatchPackages.${dep} else pkgs.fetchurl { url = dep.resolved; hash = dep.integrity; })
       deps;
 
-  reformatPackageName = pname:
-    let
-      parts = tail (match "^(@([^/]+)/)?([^/]+)$" pname);
-      non-null = filter (x: x != null) parts;
-    in
-    concatStringsSep "-" non-null;
-  packageJSON = readPackageJSON root;
-  resolvedPname = attrs.pname or (packageJSON.name or fallbackPackageName);
-  resolvedVersion = attrs.version or (packageJSON.version or fallbackPackageVersion);
-  name = attrs.name or "${reformatPackageName resolvedPname}-${resolvedVersion}";
+  # reformatPackageName = pname:
+  #   let
+  #     parts = tail (match "^(@([^/]+)/)?([^/]+)$" pname);
+  #     non-null = filter (x: x != null) parts;
+  #   in
+  #   concatStringsSep "-" non-null;
+  # packageJSON = readPackageJSON root;
+  # resolvedPname = attrs.pname or (packageJSON.name or fallbackPackageName);
+  # resolvedVersion = attrs.version or (packageJSON.version or fallbackPackageVersion);
+  # name = attrs.name or "${reformatPackageName resolvedPname}-${resolvedVersion}";
   npmOverrideScript = pkgs.writeShellScriptBin "npm" ''
     source "${pkgs.stdenv}/setup"
     set -e
@@ -85,16 +78,10 @@ let
       '';
 in
 
-
-
 nodejs.stdenv.mkDerivation (args // {
   inherit npmBuildScript;
 
-  nativeBuildInputs = nativeBuildInputs ++ [
-    nodejs
-    nodejs.python
-  ]
-    ++ optionals stdenv.isDarwin [ darwin.cctools ];
+  nativeBuildInputs = nativeBuildInputs ++ [ nodejs nodejs.python ] ++ optionals stdenv.isDarwin [ darwin.cctools ];
   buildInputs = buildInputs ++ [ nodejs ];
 
   configurePhase =
@@ -108,18 +95,22 @@ nodejs.stdenv.mkDerivation (args // {
       export npm_config_cache=$PWD/.npm
     '';
 
-  # TODO: ADD
-
   buildPhase =
     args.buildPhase
       or ''
       echo "Executing npmBuildHook"
       runHook preBuild
-      mkdir -p .npm
-      cp -r ${cacache} .npm/_cacache
       ${nodejs}/bin/npm config set cache "$npm_config_cache"
       ${nodejs}/bin/npm config set offline true
       ${nodejs}/bin/npm config set progress false
+
+      ${lib.optionalString (customPatchPackages != { }) ''
+        echo "Patching npm packages integrity"
+        ${nodejs}/bin/node ${./scripts}/package-lock.mjs
+      ''}
+
+      mkdir -p .npm
+      cp -r ${cacache} .npm/_cacache
       ${nodejs}/bin/npm ci --ignore-scripts --prefer-offline --nodedir=${nodejs}/include/node ${concatStringsSep " " npmInstallFlags} ${concatStringsSep " " npmRebuildFlags}
       if ! ${boolToString dontNpmBuild}; then
         ${nodejs}/bin/npm run ${npmBuildScript} -- ${concatStringsSep " " npmBuildFlags} ${concatStringsSep " " npmFlags}
@@ -141,5 +132,4 @@ nodejs.stdenv.mkDerivation (args // {
   strictDeps = true;
   dontStrip = args.dontStrip or true;
   meta = (args.meta or { }) // { platforms = args.meta.platforms or nodejs.meta.platforms; };
-}
-)
+})
