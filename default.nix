@@ -1,12 +1,11 @@
 # The noxide Nix support for building NPM packages.
 # See `buildPackage` for the main entry point.
 
-{ pkgs, lib, ... }:
+{ pkgs, lib, darwin, ... }:
 
 with builtins;
 with lib;
 with pkgs.stdenv;
-with pkgs.nodejs;
 
 { name ? "${args.pname}-${args.version}"
 , src ? null
@@ -81,7 +80,7 @@ in
 nodejs.stdenv.mkDerivation (args // {
   inherit npmBuildScript;
 
-  nativeBuildInputs = nativeBuildInputs ++ [ nodejs nodejs.python ] ++ optionals stdenv.isDarwin [ darwin.cctools ];
+  nativeBuildInputs = nativeBuildInputs ++ [ nodejs nodejs.python ] ++ optionals isDarwin [ darwin.cctools ];
   buildInputs = buildInputs ++ [ nodejs ];
 
   configurePhase =
