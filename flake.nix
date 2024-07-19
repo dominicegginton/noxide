@@ -23,7 +23,7 @@
 
         {
           formatter = pkgs.nixpkgs-fmt;
-          lib.noxide = pkgs.lib.noxide;
+          lib.buildNpmPackage = pkgs.lib.buildNpmPackage;
           checks = {
             empty-package = pkgs.callPackage ./test/empty-package { };
             hello-world = pkgs.callPackage ./test/hello-world { };
@@ -38,7 +38,7 @@
     //
 
     {
-      overlays.default = final: prev: { lib = prev.lib // { noxide = final.callPackage ./default.nix { }; }; };
+      overlays.default = final: prev: { lib = prev.lib // { buildNpmPackage = final.callPackage ./default.nix { }; }; };
       githubActions = mkGithubMatrix { checks = getAttrs (attrNames githubPlatforms) self.checks; };
     };
 }

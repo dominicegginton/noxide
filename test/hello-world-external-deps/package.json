@@ -1,7 +1,7 @@
 {
-    "name": "hello-world-external-deps",
-    "version": "1.0.0",
-    "dependencies": {
-        "colors": "https://github.com/Marak/colors.js/archive/refs/tags/v1.4.0.tar.gz"
-    }
+  "name": "hello-world-external-deps",
+  "version": "1.0.0",
+  "dependencies": {
+    "colors": "https://github.com/Marak/colors.js/archive/refs/tags/v1.4.0.tar.gz"
+  }
 }

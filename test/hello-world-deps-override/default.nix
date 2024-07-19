@@ -1,6 +1,6 @@
 { pkgs, lib }:
 
-lib.noxide {
+lib.buildNpmPackage {
   name = "hello-world-deps-override";
   src = lib.sources.cleanSource ./.;
   dontNpmBuild = true;

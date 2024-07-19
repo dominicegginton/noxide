@@ -1,3 +1,3 @@
-const _ = require('colors');
+const _ = require("colors");
 
-console.log('Hello World'.green);
+console.log("Hello World".green);

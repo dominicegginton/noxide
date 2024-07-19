@@ -1,6 +1,6 @@
 { pkgs, lib }:
 
-lib.noxide {
+lib.buildNpmPackage {
   name = "hello-world-deps";
   src = lib.sources.cleanSource ./.;
   dontNpmBuild = true;
