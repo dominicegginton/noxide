@@ -7,7 +7,7 @@ let
   };
 in
 
-lib.buildNpmPackage {
+lib.buildNpmPackageNoxide {
   name = "hello-world-deps-override";
   src = lib.sources.cleanSource ./.;
   dontNpmBuild = true;

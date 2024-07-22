@@ -1,6 +1,6 @@
 { pkgs, lib }:
 
-lib.buildNpmPackage {
+lib.buildNpmPackageNoxide {
   name = "hello-world";
   src = lib.sources.cleanSource ./.;
   dontNpmBuild = true;
