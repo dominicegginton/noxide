@@ -28,7 +28,7 @@
             empty-package = pkgs.callPackage ./test/empty-package { };
             hello-world = pkgs.callPackage ./test/hello-world { };
             hello-world-deps = pkgs.callPackage ./test/hello-world-deps { };
-            # hello-world-deps-override = pkgs.callPackage ./test/hello-world-deps-override { };
+            hello-world-deps-override = pkgs.callPackage ./test/hello-world-deps-override { };
             hello-world-external-deps = pkgs.callPackage ./test/hello-world-external-deps { };
             hello-world-workspaces = pkgs.callPackage ./test/hello-world-workspaces { };
           };
